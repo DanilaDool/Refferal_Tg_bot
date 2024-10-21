@@ -21,6 +21,7 @@ CONTACT_KEYBOARD = Telegram::Bot::Types::InlineKeyboardMarkup.new(
   ]
 )
 
+Telegram::Bot::Client.run(API, timeout: 60) do |bot|
 # Потоки для параллельной отправки сообщений
 def send_message_in_thread(bot, chat_id, text, reply_markup=nil)
   Thread.new do
@@ -203,11 +204,12 @@ Telegram::Bot::Client.run(API) do |bot|
           markup = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [kb])
           send_message_in_thread(bot, message.chat.id, "Оставить отзыв можно здесь, позже администратор его опубликует :)", markup)
 
-        when 'Интсрукция по оформлению📖'
+        when 'Инструкция по оформлению📖'
           kb = [
             Telegram::Bot::Types::InlineKeyboardButton.new(text: 'Инструкция по формлению на примере - (Т-Банк)', url: 'https://vc.ru/u/3933941-smgreferals/1597130-zdravstvuite-eto-podrobnaya-instrukciya-dlya-zarabotka-vam-nuzhno-budet-sdelat-neskolko-prostyh-deistviiinstrukciya-nizhe')
           ]
           markup = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: [kb])
+
           send_message_in_thread(bot, message.chat.id, "Если в случае прочтения инструкции у вас всё равно остались вопросы, можете смело писать нам :)", markup)
 
         else
@@ -224,5 +226,25 @@ Telegram::Bot::Client.run(API) do |bot|
     else
       puts "Received a non-message update or a message without text" if rand < 0.1
     end
+
+    def send_message_in_thread(bot, chat_id, text, reply_markup=nil)
+      Thread.new do
+        attempts = 0
+        begin
+          bot.api.send_message(chat_id: chat_id, text: text, reply_markup: reply_markup)
+        rescue Faraday::ConnectionFailed, Net::OpenTimeout => e
+          attempts += 1
+          if attempts < 3
+            puts "Ошибка подключения. Повторная попытка #{attempts}..."
+            sleep(5) # Задержка перед повторной попыткой
+            retry
+          else
+            puts "Не удалось отправить сообщение после 3 попыток: #{e.message}"
+          end
+        end
+      end
+    end
+
   end
+end
 end
