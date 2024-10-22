@@ -232,6 +232,21 @@ Telegram::Bot::Client.run(API) do |bot|
         attempts = 0
         begin
           bot.api.send_message(chat_id: chat_id, text: text, reply_markup: reply_markup)
+        rescue Telegram::Bot::Exceptions::ResponseError => e
+          if e.message.include?('403')
+            puts "Bot was blocked by the user. Skipping..." # Пользователь заблокировал бота
+          elsif e.message.include?('502')
+            attempts += 1
+            if attempts < 3
+              puts "Ошибка 502 (Bad Gateway). Повторная попытка #{attempts}..."
+              sleep(5)
+              retry
+            else
+              puts "Не удалось отправить сообщение после 3 попыток: #{e.message}"
+            end
+          else
+            puts "Произошла ошибка: #{e.message}"
+          end
         rescue Faraday::ConnectionFailed, Net::OpenTimeout => e
           attempts += 1
           if attempts < 3
@@ -244,6 +259,7 @@ Telegram::Bot::Client.run(API) do |bot|
         end
       end
     end
+
 
   end
 end
